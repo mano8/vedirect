@@ -10,5 +10,6 @@ setup(name='vedirect',
       packages=['vedirect'],
       install_requires=[
           'pyserial',
+          'simplejson',
       ],
       zip_safe=False)
