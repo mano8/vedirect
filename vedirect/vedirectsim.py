@@ -1,27 +1,24 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
+import logging
+import time
+import os
+import argparse
+from vedirect.serconnect import SerialConnection
+from vedirect.core.utils import Utils as U
 
-import os, serial, time, argparse
+logging.basicConfig()
+logger = logging.getLogger("vedirect")
 
-class Vedirectsim:
+class Vedirectsim(SerialConnection):
 
-    def __init__(self, serialport):
-        self.serialport = serialport
-        self.ser = serial.Serial(serialport, 19200, timeout=10)
-        self.dict = {'V': '12800', 'VS': '12800', 'VM': '1280', 'DM': '120',
-                     'VPV': '3350', 'PPV': '130', 'I': '15000', 'IL': '1500',
-                     'LOAD': 'ON', 'T': '25', 'P': '130', 'CE': '13500',
-                     'SOC': '876', 'TTG': '45', 'Alarm': 'OFF', 'Relay': 'OFF',
-                     'AR': '1', 'H1': '55000', 'H2': '15000', 'H3': '13000',
-                     'H4': '230', 'H5': '12', 'H6': '234000', 'H7': '11000',
-                     'H8': '14800', 'H9': '7200', 'H10': '45', 'H11': '5',
-                     'H12': '0', 'H13': '0', 'H14': '0', 'H15': '11500',
-                     'H16': '14800', 'H17': '34', 'H18': '45', 'H19': '456',
-                     'H20': '45', 'H21': '300', 'H22': '45', 'H23': '350',
-                     'ERR': '0', 'CS': '5', 'BMV': '702', 'FW': '1.19',
-                     'PID': '0x204', 'SER#': 'HQ141112345', 'HSDS': '0'}
+    def __init__(self, **kwargs):
+        SerialConnection.__init__(self, **kwargs)
+        self.dataInput = {}
+        self.dict = {}
 
     def convert(self, datadict):
+        """ Convert dict data to vedirect data format """
         result = list()
         for key in self.dict:
             result.append(ord('\r'))
@@ -36,19 +33,30 @@ class Vedirectsim:
         result.append(ord('\t'))
         result.append((256 - (sum(result) % 256)) % 256)
         return result
-                      
 
-        
     def send_packet(self):
-        packet = self.convert(self.dict)
-        self.ser.write(bytes(packet))
+        """ Send packet on serial port """
+        logger.debug("Sending packet to serial: %s"%(self.dict))
+        try:
+            packet = self.convert(self.dict)
+        except Exception as ex:
+            logger.debug("Fatal Error : Data conversion error at : %s - tim : %s"%(Utils.timeToString(time.time()), time.time()))
+            return False
 
-        
+        for k in packet:
+            try:               
+                self.ser.write(bytes(k))
+                
+            except Exception as ex:
+                logger.debug("Fatal Error : Serial write error in k %s sum : %s at : %s - tim : %s"%(k, sum(packet), Utils.timeToString(time.time()), time.time()), lsr)
+                return False
+        return True
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='A simple VE.Direct simulator')
     parser.add_argument('--port', help='Serial port')
     args = parser.parse_args()
-    ve = Vedirectsim(args.port)
+    ve = Vedirectsim(**{args.port})
     while True:
         ve.send_packet()
         time.sleep(1)
